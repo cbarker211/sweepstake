@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Sweepstake — 2026 World Cup Bracket</title>
+<style>
+  :root{
+    --bg:#f6f7f4; --bg-2:#eef1ea;
+    --ink:#1f2a24;             /* primary text */
+    --ink-dim:#7a857d;         /* muted text */
+    --gold:#c08a2d;            /* accent */
+    --line:#dde2da;            /* hairlines */
+    --card:#ffffff;            /* box surface */
+    --dead:#b3bcb2;            /* eliminated */
+    /* four owner colours — readable on light */
+    --c0:#d99a2b; --c1:#3d8fc4; --c2:#cf6a4f; --c3:#4fa777;
+    /* matching soft fills for owned-team backgrounds */
+    --t0:#f7ecd5; --t1:#dceaf4; --t2:#f5e1da; --t3:#dcefe4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:linear-gradient(180deg,var(--bg),var(--bg-2));
+    color:var(--ink);
+    font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    min-height:100vh;padding:26px 16px 80px;line-height:1.4;
+  }
+  .wrap{max-width:1280px;margin:0 auto}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:20px}
+  .eyebrow{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:7px}
+  h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(28px,4.5vw,46px);font-weight:700;letter-spacing:-.01em;line-height:1}
+  h1 .sub{display:block;font-size:.4em;color:var(--ink-dim);font-weight:400;font-style:italic;margin-top:6px}
+
+
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  .toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:14px}
+  .btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:6px;font-size:12px;letter-spacing:.03em;transition:border-color .15s,background .15s}
+  .btn:hover{border-color:var(--gold)}
+  .btn.primary{background:var(--gold);color:#fff;border-color:var(--gold);font-weight:700}
+  .btn.active{border-color:var(--gold);color:var(--gold)}
+
+  .syncbar{font-size:11.5px;letter-spacing:.02em;margin-bottom:20px;display:flex;align-items:center;gap:8px;color:var(--ink-dim);min-height:15px}
+  .syncbar .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-dim);flex:none}
+  .syncbar.ok .dot{background:#4fa777}
+  .syncbar.loading .dot{background:var(--gold);animation:pulse 1s infinite}
+  .syncbar.err .dot{background:var(--c2)}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+  .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:30px}
+  .pcard{border:1px solid var(--line);border-left-width:4px;border-radius:8px;padding:13px 14px;background:var(--card);box-shadow:0 1px 2px rgba(31,42,36,.04)}
+  .pcard .top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+  .pcard .pname{font-size:13px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;background:none;border:none;width:70%;padding:2px 0}
+  .pcard .pname:focus{outline:none;border-bottom:1px solid currentColor}
+  .pcard .tally{font-family:Georgia,serif;font-size:26px;font-weight:700;line-height:1}
+  .pcard .tally small{font-size:11px;color:var(--ink-dim);font-family:inherit;letter-spacing:.1em}
+  .pcard .grp-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .grp-chip{font-size:10px;letter-spacing:.06em;padding:3px 8px;border-radius:20px;border:1px solid var(--line);background:var(--bg-2);color:var(--ink-dim)}
+  .grp-chip.assigned{font-weight:700;color:#fff}
+  .crown{font-size:14px}
+
+  .assign{display:none;border:1px solid rgba(192,138,45,.4);background:rgba(192,138,45,.07);border-radius:8px;padding:16px;margin-bottom:28px}
+  body.assigning .assign{display:block}
+  .assign h3{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;font-weight:700}
+  .assign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .assign-row{border:1px solid var(--line);border-radius:6px;padding:9px 11px;background:var(--card)}
+  .assign-row .gl{font-family:Georgia,serif;font-weight:700;font-size:13px;margin-bottom:3px}
+  .assign-row .teams{font-size:10.5px;color:var(--ink-dim);margin-bottom:7px;line-height:1.35}
+  .assign-row select{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:5px;font-size:12px;font-family:inherit}
+  .assign-row select:focus{outline:none;border-color:var(--gold)}
+
+  .bracket-scroll{overflow-x:auto;padding-bottom:14px}
+  .bracket{display:flex;gap:0;min-width:min-content;align-items:stretch;justify-content:center}
+  .side{display:flex;gap:10px}
+  /* each column stretches; ties flex-grow equally and centre their content,
+     so a later-round box sits at the midpoint of its two feeders */
+  .col{display:flex;flex-direction:column;min-width:118px;gap:0}
+  .col-hd{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);font-weight:700;text-align:center;margin-bottom:6px;height:12px;flex:none}
+  .col-body{display:flex;flex-direction:column;flex:1}
+  .tie-wrap{flex:1 1 0;display:flex;align-items:center;justify-content:center;padding:3px 0}
+  .tie{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--card);box-shadow:0 1px 2px rgba(31,42,36,.05);width:100%}
+  .col.centre{justify-content:center;min-width:118px;margin:0 6px}
+  .col.centre .tie{border-color:var(--gold);box-shadow:0 0 0 1px rgba(192,138,45,.2),0 1px 3px rgba(31,42,36,.08)}
+  .slot{display:flex;align-items:center;gap:6px;padding:5px 7px;font-size:12px;border-left:3px solid transparent;min-height:28px}
+  .slot+.slot{border-top:1px solid var(--line)}
+  .slot .flag{font-size:13px;width:17px;text-align:center;flex:none}
+  .slot .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;letter-spacing:.04em;font-size:12.5px}
+  .slot .sc{font-variant-numeric:tabular-nums;font-size:11px;color:var(--ink-dim);flex:none}
+  .slot.winner{background:var(--bg-2)}
+  .slot.winner .nm{font-weight:700}
+  .slot.loser .nm{color:var(--dead);text-decoration:line-through;text-decoration-thickness:1px}
+  .slot.loser .flag{filter:grayscale(1);opacity:.4}
+  .slot.tbd .nm{color:var(--ink-dim);font-style:italic;font-weight:400}
+  /* mirror the right side so the accent bars face inward */
+  .side.right .slot{border-left:none;border-right:3px solid transparent;flex-direction:row-reverse}
+  .side.right .slot .nm{text-align:right}
+
+  footer{margin-top:38px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);letter-spacing:.03em;text-align:center}
+  @media(max-width:560px){body{padding:18px 10px 60px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Canada · Mexico · USA 2026</div>
+    <h1>The Sweepstake<span class="sub">live knockout bracket — coloured by who owns each team</span></h1>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn primary" id="assignBtn">Assign groups</button>
+    <button class="btn" id="syncBtn">↻ Refresh results</button>
+    <button class="btn" id="resetBtn">Reset names &amp; groups</button>
+  </div>
+  <div class="syncbar" id="syncbar"></div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="assign" id="assign">
+    <h3>Who owns each group?</h3>
+    <div class="assign-grid" id="assignGrid"></div>
+  </div>
+
+  <div class="bracket-scroll">
+    <div class="bracket" id="bracket"></div>
+  </div>
+
+  <footer>Live results auto-sync from the public openfootball dataset · grey strike-through = knocked out · uncoloured = nobody's team</footer>
+</div>
+
+<script>
+const GROUPS = {
+  A:["Mexico","South Africa","South Korea","Czech Republic"],
+  B:["Canada","Switzerland","Qatar","Bosnia and Herzegovina"],
+  C:["Brazil","Morocco","Haiti","Scotland"],
+  D:["United States","Paraguay","Australia","Turkey"],
+  E:["Germany","Curaçao","Ivory Coast","Ecuador"],
+  F:["Netherlands","Japan","Sweden","Tunisia"],
+  G:["Belgium","Egypt","Iran","New Zealand"],
+  H:["Spain","Cape Verde","Saudi Arabia","Uruguay"],
+  I:["France","Senegal","Iraq","Norway"],
+  J:["Argentina","Algeria","Austria","Jordan"],
+  K:["Portugal","DR Congo","Uzbekistan","Colombia"],
+  L:["England","Croatia","Ghana","Panama"]
+};
+const LETTERS = Object.keys(GROUPS);
+const TEAM_GROUP = {};
+LETTERS.forEach(L=>GROUPS[L].forEach(t=>TEAM_GROUP[t]=L));
+
+const FLAG = {
+  "Mexico":"🇲🇽","South Africa":"🇿🇦","South Korea":"🇰🇷","Czech Republic":"🇨🇿",
+  "Canada":"🇨🇦","Switzerland":"🇨🇭","Qatar":"🇶🇦","Bosnia and Herzegovina":"🇧🇦",
+  "Brazil":"🇧🇷","Morocco":"🇲🇦","Haiti":"🇭🇹","Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+  "United States":"🇺🇸","Paraguay":"🇵🇾","Australia":"🇦🇺","Turkey":"🇹🇷",
+  "Germany":"🇩🇪","Curaçao":"🇨🇼","Ivory Coast":"🇨🇮","Ecuador":"🇪🇨",
+  "Netherlands":"🇳🇱","Japan":"🇯🇵","Sweden":"🇸🇪","Tunisia":"🇹🇳",
+  "Belgium":"🇧🇪","Egypt":"🇪🇬","Iran":"🇮🇷","New Zealand":"🇳🇿",
+  "Spain":"🇪🇸","Cape Verde":"🇨🇻","Saudi Arabia":"🇸🇦","Uruguay":"🇺🇾",
+  "France":"🇫🇷","Senegal":"🇸🇳","Iraq":"🇮🇶","Norway":"🇳🇴",
+  "Argentina":"🇦🇷","Algeria":"🇩🇿","Austria":"🇦🇹","Jordan":"🇯🇴",
+  "Portugal":"🇵🇹","DR Congo":"🇨🇩","Uzbekistan":"🇺🇿","Colombia":"🇨🇴",
+  "England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","Croatia":"🇭🇷","Ghana":"🇬🇭","Panama":"🇵🇦"
+};
+const ABBR = {
+  "Mexico":"MEX","South Africa":"RSA","South Korea":"KOR","Czech Republic":"CZE",
+  "Canada":"CAN","Switzerland":"SUI","Qatar":"QAT","Bosnia and Herzegovina":"BIH",
+  "Brazil":"BRA","Morocco":"MAR","Haiti":"HAI","Scotland":"SCO",
+  "United States":"USA","Paraguay":"PAR","Australia":"AUS","Turkey":"TUR",
+  "Germany":"GER","Curaçao":"CUW","Ivory Coast":"CIV","Ecuador":"ECU",
+  "Netherlands":"NED","Japan":"JPN","Sweden":"SWE","Tunisia":"TUN",
+  "Belgium":"BEL","Egypt":"EGY","Iran":"IRN","New Zealand":"NZL",
+  "Spain":"ESP","Cape Verde":"CPV","Saudi Arabia":"KSA","Uruguay":"URU",
+  "France":"FRA","Senegal":"SEN","Iraq":"IRQ","Norway":"NOR",
+  "Argentina":"ARG","Algeria":"ALG","Austria":"AUT","Jordan":"JOR",
+  "Portugal":"POR","DR Congo":"COD","Uzbekistan":"UZB","Colombia":"COL",
+  "England":"ENG","Croatia":"CRO","Ghana":"GHA","Panama":"PAN"
+};
+const NAME_FIX = {"Bosnia & Herzegovina":"Bosnia and Herzegovina","USA":"United States","Korea Republic":"South Korea","Czechia":"Czech Republic","Congo DR":"DR Congo","Türkiye":"Turkey"};
+const fixName = n => NAME_FIX[n] || n;
+
+const ROUND_ORDER = ["Round of 32","Round of 16","Quarter-final","Semi-final","Final"];
+const ROUND_LABEL = {"Round of 32":"Round of 32","Round of 16":"Round of 16","Quarter-final":"Quarter-finals","Semi-final":"Semi-finals","Final":"Final"};
+
+const FEED_URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json";
+
+// Embedded snapshot so the bracket renders even if the live fetch is blocked by the sandbox.
+const BASELINE_KO = [{"round": "Round of 32", "num": 73, "team1": "South Africa", "team2": "Canada", "score": {"ft": [0, 1], "ht": [0, 0]}}, {"round": "Round of 32", "num": 74, "team1": "Germany", "team2": "Paraguay", "score": {"p": [3, 4], "et": [1, 1], "ft": [1, 1], "ht": [0, 1]}}, {"round": "Round of 32", "num": 75, "team1": "Netherlands", "team2": "Morocco", "score": {"p": [2, 3], "et": [1, 1], "ft": [1, 1], "ht": [0, 0]}}, {"round": "Round of 32", "num": 76, "team1": "Brazil", "team2": "Japan", "score": {"ft": [2, 1], "ht": [0, 1]}}, {"round": "Round of 32", "num": 77, "team1": "France", "team2": "Sweden"}, {"round": "Round of 32", "num": 78, "team1": "Ivory Coast", "team2": "Norway"}, {"round": "Round of 32", "num": 79, "team1": "Mexico", "team2": "Ecuador"}, {"round": "Round of 32", "num": 80, "team1": "England", "team2": "DR Congo"}, {"round": "Round of 32", "num": 81, "team1": "USA", "team2": "Bosnia & Herzegovina"}, {"round": "Round of 32", "num": 82, "team1": "Belgium", "team2": "Senegal"}, {"round": "Round of 32", "num": 83, "team1": "Portugal", "team2": "Croatia"}, {"round": "Round of 32", "num": 84, "team1": "Spain", "team2": "Austria"}, {"round": "Round of 32", "num": 85, "team1": "Switzerland", "team2": "Algeria"}, {"round": "Round of 32", "num": 86, "team1": "Argentina", "team2": "Cape Verde"}, {"round": "Round of 32", "num": 87, "team1": "Colombia", "team2": "Ghana"}, {"round": "Round of 32", "num": 88, "team1": "Australia", "team2": "Egypt"}, {"round": "Round of 16", "num": 89, "team1": "W74", "team2": "W77"}, {"round": "Round of 16", "num": 90, "team1": "Canada", "team2": "W75"}, {"round": "Round of 16", "num": 91, "team1": "W76", "team2": "W78"}, {"round": "Round of 16", "num": 92, "team1": "W79", "team2": "W80"}, {"round": "Round of 16", "num": 93, "team1": "W83", "team2": "W84"}, {"round": "Round of 16", "num": 94, "team1": "W81", "team2": "W82"}, {"round": "Round of 16", "num": 95, "team1": "W86", "team2": "W88"}, {"round": "Round of 16", "num": 96, "team1": "W85", "team2": "W87"}, {"round": "Quarter-final", "num": 97, "team1": "W89", "team2": "W90"}, {"round": "Quarter-final", "num": 98, "team1": "W93", "team2": "W94"}, {"round": "Quarter-final", "num": 99, "team1": "W91", "team2": "W92"}, {"round": "Quarter-final", "num": 100, "team1": "W95", "team2": "W96"}, {"round": "Semi-final", "num": 101, "team1": "W97", "team2": "W98"}, {"round": "Semi-final", "num": 102, "team1": "W99", "team2": "W100"}, {"round": "Match for third place", "num": 103, "team1": "L101", "team2": "L102"}, {"round": "Final", "num": 104, "team1": "W101", "team2": "W102"}];
+
+const KEY = "wc26-sweepstake-bracket-v1";
+let state = { players:["Connor","Player 2","Player 3","Player 4"], owners:{I:0,J:0,L:0} };
+let matches = BASELINE_KO.slice();  // start from embedded snapshot; live fetch upgrades it
+let assigning = false;
+let syncInfo = {state:"idle",msg:""};
+
+async function load(){
+  try{ const r = await window.storage.get(KEY); if(r&&r.value) state = Object.assign(state, JSON.parse(r.value)); }catch(e){}
+  renderAll();
+  syncLive();
+}
+async function save(){ try{ await window.storage.set(KEY, JSON.stringify(state)); }catch(e){} }
+
+function resolvedWinnerLoser(m){
+  if(!m.score || !m.score.ft) return null;
+  const a = fixName(m.team1), b = fixName(m.team2);
+  if(!TEAM_GROUP[a] || !TEAM_GROUP[b]) return null;
+  let [ga,gb] = m.score.ft;
+  if(m.score.et) [ga,gb] = m.score.et;
+  if(ga===gb && m.score.p){ const [pa,pb]=m.score.p; return pa>pb?{winner:a,loser:b}:{winner:b,loser:a}; }
+  if(ga>gb) return {winner:a,loser:b};
+  if(gb>ga) return {winner:b,loser:a};
+  return null;
+}
+function resolveRef(ref, byNum){
+  if(!ref) return null;
+  const t = fixName(ref);
+  if(TEAM_GROUP[t]) return t;
+  const mm = /^([WL])(\d+)$/.exec(ref);
+  if(!mm) return null;
+  const src = byNum[mm[2]];
+  if(!src) return null;
+  const r = resolvedWinnerLoser(src);
+  if(!r) return null;
+  return mm[1]==="W" ? r.winner : r.loser;
+}
+function scoreString(m){
+  const s=m.score; if(!s||!s.ft) return "";
+  if(s.p) return `${s.p[0]}-${s.p[1]}p`;
+  if(s.et) return `${s.et[0]}-${s.et[1]}`;
+  return `${s.ft[0]}-${s.ft[1]}`;
+}
+
+function renderSync(){
+  const bar=document.getElementById("syncbar");
+  bar.className="syncbar "+syncInfo.state;
+  bar.innerHTML = syncInfo.msg ? `<span class="dot"></span><span>${esc(syncInfo.msg)}</span>` : "";
+}
+async function syncLive(){
+  syncInfo={state:"loading",msg:"Checking for the latest results…"}; renderSync();
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 6000);
+    const res = await fetch(FEED_URL,{cache:"no-store",signal:ctrl.signal});
+    clearTimeout(timer);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data = await res.json();
+    matches = (data.matches||[]).filter(m=>!m.group);
+    const ts = new Date().toLocaleString("en-GB",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"});
+    const played = matches.filter(m=>resolvedWinnerLoser(m)).length;
+    syncInfo={state:"ok",msg:`Live · synced ${ts} · ${played} knockout games decided`};
+    renderAll();
+  }catch(e){
+    // Fetch blocked or offline — keep the embedded snapshot already showing.
+    matches = BASELINE_KO.slice();
+    const played = matches.filter(m=>resolvedWinnerLoser(m)).length;
+    syncInfo={state:"err",msg:`Showing saved results (${played} games in) — live updates unavailable here. Open this file in a browser for live refresh.`};
+    renderAll();
+  }
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function ownerOf(team){ const L=TEAM_GROUP[team]; if(L===undefined) return null; const o=state.owners[L]; return (o===undefined||o==="")?null:o; }
+function colorVar(pi){ return `var(--c${pi})`; }
+
+function bracketStatus(){
+  const koLost = new Set();   // lost a knockout match
+  const inKO = new Set();     // reached the knockout stage
+  if(matches){
+    matches.filter(m=>m.round==="Round of 32").forEach(m=>{
+      [fixName(m.team1),fixName(m.team2)].forEach(t=>{ if(TEAM_GROUP[t]) inKO.add(t); });
+    });
+    matches.forEach(m=>{ const r=resolvedWinnerLoser(m); if(r) koLost.add(r.loser); });
+  }
+  // A team is "out" if it didn't reach the knockouts (lost in the group stage) or lost a KO match.
+  const isOut = team => (!inKO.has(team)) || koLost.has(team);
+  return {isOut, inKO};
+}
+
+function renderLegend(){
+  const {isOut} = bracketStatus();
+  const counts = state.players.map((_,pi)=>{
+    let alive=0,total=0;
+    Object.keys(TEAM_GROUP).forEach(t=>{
+      if(ownerOf(t)===pi){ total++; if(!isOut(t)) alive++; }   // total = all teams in owned groups (12 for 3 groups)
+    });
+    return {alive,total};
+  });
+  const maxAlive = Math.max(...counts.map(c=>c.alive),0);
+  const el=document.getElementById("legend"); el.innerHTML="";
+  state.players.forEach((name,pi)=>{
+    const {alive,total}=counts[pi];
+    const mine = LETTERS.filter(L=>state.owners[L]===pi);
+    const lead = alive>0 && alive===maxAlive;
+    const card=document.createElement("div");
+    card.className="pcard";
+    card.style.borderLeftColor=colorVar(pi);
+    card.innerHTML=`
+      <div class="top">
+        <input class="pname" data-pi="${pi}" value="${esc(name)}" maxlength="20" style="color:${colorVar(pi)}">
+        <span class="crown">${lead?"👑":""}</span>
+      </div>
+      <div class="tally" style="color:${colorVar(pi)}">${alive}<small> of ${total} in</small></div>
+      <div class="grp-row">${mine.length?mine.map(L=>`<span class="grp-chip assigned" style="background:${colorVar(pi)};border-color:${colorVar(pi)}">Group ${L}</span>`).join(""):'<span class="grp-chip">no groups yet</span>'}</div>`;
+    el.appendChild(card);
+  });
+  el.querySelectorAll(".pname").forEach(inp=>inp.addEventListener("change",e=>{
+    const i=+e.target.dataset.pi; state.players[i]=e.target.value.trim()||("Player "+(i+1)); save(); renderAll();
+  }));
+}
+
+function renderAssign(){
+  const grid=document.getElementById("assignGrid"); grid.innerHTML="";
+  LETTERS.forEach(L=>{
+    const row=document.createElement("div"); row.className="assign-row";
+    const cur = state.owners[L];
+    row.innerHTML=`
+      <div class="gl">Group ${L}</div>
+      <div class="teams">${GROUPS[L].map(esc).join(" · ")}</div>
+      <select data-g="${L}">
+        <option value="">— nobody —</option>
+        ${state.players.map((p,i)=>`<option value="${i}" ${cur==i?"selected":""}>${esc(p)}</option>`).join("")}
+      </select>`;
+    grid.appendChild(row);
+  });
+  grid.querySelectorAll("select").forEach(sel=>sel.addEventListener("change",e=>{
+    const L=e.target.dataset.g, v=e.target.value;
+    if(v==="") delete state.owners[L]; else state.owners[L]=+v;
+    save(); renderAll();
+  }));
+}
+
+function slotHtml(team, m, isWinner, isLoser){
+  if(!team){
+    return `<div class="slot tbd"><span class="nm">TBD</span><span class="sc"></span></div>`;
+  }
+  const pi = ownerOf(team);
+  const styleBorder = pi!==null ? `border-left-color:${colorVar(pi)};border-right-color:${colorVar(pi)}` : "";
+  const bg = (pi!==null && !isLoser) ? `background:var(--t${pi})` : "";
+  const cls = "slot"+(isWinner?" winner":"")+(isLoser?" loser":"");
+  return `<div class="${cls}" style="${styleBorder};${bg}">
+    <span class="nm">${esc(ABBR[team]||team)}</span>
+    <span class="sc">${esc(scoreString(m))}</span>
+  </div>`;
+}
+
+// Build the tree: which matches feed a given match, by walking W##/L## refs
+function feederNums(m){
+  const out=[];
+  ["team1","team2"].forEach(k=>{
+    const v=m[k]||""; const mm=/^[WL](\d+)$/.exec(v);
+    if(mm) out.push(+mm[1]);
+  });
+  return out;
+}
+
+// Some feeds pre-fill an advancing team's name into the next round instead of leaving a W## ref.
+// This finds the R32 match a given real team played in, so it still appears as a feeder.
+function r32MatchForTeam(team, byNum){
+  const t=fixName(team);
+  for(const num in byNum){
+    const m=byNum[num];
+    if(m.round!=="Round of 32") continue;
+    if(fixName(m.team1)===t || fixName(m.team2)===t) return +num;
+  }
+  return null;
+}
+// feeders into a Round-of-16 match, resolving both W## refs and pre-filled team names
+function r16Feeders(m, byNum){
+  const out=[];
+  ["team1","team2"].forEach(k=>{
+    const v=m[k]||"";
+    const mm=/^[WL](\d+)$/.exec(v);
+    if(mm){ out.push(+mm[1]); return; }
+    const f=fixName(v);
+    if(TEAM_GROUP[f]){ const n=r32MatchForTeam(v,byNum); if(n) out.push(n); }
+  });
+  return out;
+}
+
+// Returns ordered match numbers for one round on one side, preserving top→bottom tree order.
+function sideRounds(byNum){
+  const final = byNum[104];
+  if(!final) return null;
+  const [semiL, semiR] = feederNums(final); // 101, 102
+
+  // expand a match into the ordered list of its leaf matches at a target round depth
+  function expand(num){ // returns the subtree as nested order
+    const m=byNum[num]; if(!m) return [num];
+    const f=feederNums(m);
+    if(!f.length) return [num];
+    return f.map(expand);
+  }
+  // flatten preserving order
+  function flat(x){ return Array.isArray(x)? x.flatMap(flat) : [x]; }
+
+  // For each side, collect matches per round
+  function collectSide(semiNum){
+    const r = {R32:[],R16:[],QF:[],SF:[semiNum]};
+    const qfs = feederNums(byNum[semiNum]);        // two QFs
+    r.QF = qfs.slice();
+    qfs.forEach(q=>{
+      const r16 = feederNums(byNum[q]);            // two R16
+      r.R16.push(...r16);
+      r16.forEach(s=>{
+        const r32 = r16Feeders(byNum[s], byNum);   // one or two R32 (handles pre-filled names)
+        r.R32.push(...r32);
+      });
+    });
+    return r;
+  }
+  return { L: collectSide(semiL), R: collectSide(semiR), final:104 };
+}
+
+function tieHtml(num, byNum){
+  const m=byNum[num]; if(!m) return "";
+  const t1=resolveRef(m.team1,byNum), t2=resolveRef(m.team2,byNum);
+  const r=resolvedWinnerLoser(m);
+  const w=r?r.winner:null, l=r?r.loser:null;
+  return `<div class="tie-wrap"><div class="tie">${
+    slotHtml(t1,m,t1&&t1===w,t1&&t1===l)
+  }${
+    slotHtml(t2,m,t2&&t2===w,t2&&t2===l)
+  }</div></div>`;
+}
+
+function colHtml(label, nums, byNum){
+  return `<div class="col"><div class="col-hd">${label}</div><div class="col-body">${
+    nums.map(n=>tieHtml(n,byNum)).join("")
+  }</div></div>`;
+}
+
+function renderBracket(){
+  const host=document.getElementById("bracket"); host.innerHTML="";
+  if(!matches || !matches.length){ host.innerHTML=`<div style="color:var(--ink-dim);font-style:italic;padding:20px">Loading bracket…</div>`; return; }
+  const byNum={}; matches.forEach(m=>byNum[m.num]=m);
+
+  const tree = sideRounds(byNum);
+  if(!tree){ // fallback: simple linear layout
+    host.innerHTML = ROUND_ORDER.map(rd=>{
+      const ms=matches.filter(m=>m.round===rd).sort((a,b)=>a.num-b.num);
+      return ms.length? colHtml(ROUND_LABEL[rd], ms.map(m=>m.num), byNum):"";
+    }).join("");
+    return;
+  }
+
+  const L=tree.L, R=tree.R;
+  // left side: R32 → R16 → QF → SF
+  const left =
+    colHtml("Round of 32", L.R32, byNum) +
+    colHtml("Round of 16", L.R16, byNum) +
+    colHtml("Quarter-finals", L.QF, byNum) +
+    colHtml("Semi-final", L.SF, byNum);
+  // centre: final
+  const centre = `<div class="col centre"><div class="col-hd">Final</div>${tieHtml(tree.final,byNum)}</div>`;
+  // right side mirrored: SF → QF → R16 → R32
+  const right =
+    colHtml("Semi-final", R.SF, byNum) +
+    colHtml("Quarter-finals", R.QF, byNum) +
+    colHtml("Round of 16", R.R16, byNum) +
+    colHtml("Round of 32", R.R32, byNum);
+
+  host.innerHTML = `<div class="side left">${left}</div>${centre}<div class="side right">${right}</div>`;
+}
+
+function renderAll(){
+  document.body.classList.toggle("assigning",assigning);
+  document.getElementById("assignBtn").classList.toggle("active",assigning);
+  document.getElementById("assignBtn").textContent = assigning?"Done assigning":"Assign groups";
+  renderSync(); renderLegend(); renderAssign(); renderBracket();
+}
+
+document.getElementById("assignBtn").addEventListener("click",()=>{assigning=!assigning;renderAll();});
+document.getElementById("syncBtn").addEventListener("click",syncLive);
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  state={players:["Connor","Player 2","Player 3","Player 4"],owners:{I:0,J:0,L:0}}; save(); renderAll();
+});
+
+load();
+</script>
+</body>
+</html>
